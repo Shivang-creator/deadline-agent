@@ -69,6 +69,10 @@ And the scheduler doesn't just catch up on past thresholds — it fires at the r
 20:00:43 PROACTIVE[discord]  kind=alert:24h '⏰ "Social Media Automation" is due in 23h 59m...'
 ```
 
+And it doesn't repeat itself. One tracked deadline fired its `alert:24h` at 18:24, then its `alert:6h` independently at 20:24 when that threshold came due — **without re-firing the 24h one**. That's the per-`(deadline, threshold)` ledger doing its job on a live deployment rather than in a unit test.
+
+Across a two-hour live session: **5 distinct alert events, every one delivered to both channels, zero duplicates, zero misses** — through three transient gateway outages.
+
 ### It's an agent, not a chatbot
 
 The commands are the boring half. The half that matters is that **it speaks first**:
