@@ -18,5 +18,8 @@ dist/
 *.db-wal
 *.db-shm
 
+# Live run logs (transcripts of real conversations — not for the repo)
+*.log
+
 # OS
 .DS_Store

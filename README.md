@@ -236,39 +236,59 @@ doesn't belong in a fast, deterministic, CI-friendly test run:
 Being precise about this, since "if the demo is mocked, it isn't judged" is
 the hardest rule here:
 
-- **Live-verified against a real network, today:** the Caspian gateway
-  plumbing itself (`connect_email`, event polling, `on_message` dispatch,
-  `message.reply()`) via the free email channel, using the *identical*
-  `register_handler()` code path Telegram/Discord will use — and the
-  Featherless AI-fallback layer, against the real API.
-- **Logic-verified only (fake channel + offline tests), not yet live:**
-  everything Telegram- and Discord-specific — `connect_telegram`,
-  `connect_discord`, and an actual message arriving from a real Telegram or
-  Discord user. This genuinely cannot be verified without real bot tokens,
-  which don't exist yet. The code is written against caspian-sdk's actual,
-  documented pattern (`examples/one_handler_three_channels.py` in their
-  repo) and imports/type-checks cleanly, but "written correctly" and
-  "live-verified" are different claims and this README doesn't conflate
-  them.
+**Live-verified against real networks, with real credentials:**
+
+- **Both channels connected and `active` on the real Caspian gateway** —
+  Telegram as `@Shiv_Hacknews_Bot` (`conn_95ca485a…`), Discord as
+  `Hacknews` (`conn_22341cdf…`), from one `CommClient` with one
+  `@client.on_message` registration.
+- **A real inbound Telegram message from a real human** (`/help` from
+  Telegram user `Shiv4453`) dispatched into `core.handler.handle_message()`
+  and answered — the reply landed on Telegram with gateway
+  `status=sent`.
+- **A real proactive alert, agent-initiated, delivered to Telegram.** The
+  running scheduler computed it and called `client.send_message()` itself;
+  no inbound message triggered it. Confirmed `status=sent` on the gateway's
+  `message.sent` event stream.
+- **Real proactive alerts for the genuinely-seeded hackathon deadlines** —
+  a `24 hours-out` alert for **YouCam API** and a real **daily digest**
+  ("5 deadline(s) still open") were both delivered to Telegram unprompted.
+- **The Featherless AI-fallback layer** against the real API.
+- **Caspian's hosted email channel** round-tripping `/add` + `/list`
+  through the same `register_handler()`, via `scripts/verify_live_email.py`.
+
+**Written and connected, but not yet exercised by a real human message:**
+
+- **Discord inbound.** The Discord connection is live and `active`, and the
+  bot is now in a server, but at the time of writing no real person had yet
+  typed a command in a Discord channel, so the Telegram→Discord `/list`
+  round trip is not something this README will claim as observed. Note this
+  cannot be self-tested: Caspian's Discord adapter deliberately drops any
+  message whose author is a bot (`providers/discord.py`: `if
+  data.get("author", {}).get("bot"): return []`), and Telegram bots cannot
+  message bots — so genuine inbound traffic requires a human account, and
+  faking it would be exactly the mocking the rules exclude.
 
 ## What's in `.env.local` right now
 
 | Variable | Status |
 |---|---|
-| `CASPIAN_API_KEY`, `CASPIAN_BASE_URL` | **Real**, minted free, live-verified above |
-| `FEATHERLESS_API_KEY`, `FEATHERLESS_BASE_URL`, `FEATHERLESS_MODEL` | **Real**, reused from this account, live-verified above |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | **Blank** — waiting on a real token, never fabricated |
-| `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID` | **Blank** — waiting on a real token, never fabricated |
-
-The moment real Telegram/Discord tokens exist: paste them into those four
-blanks in `.env.local`, run `uv run python scripts/run_live.py`, and the
-exact same tested-offline core is live on both channels — no other code
-changes required.
+| `CASPIAN_API_KEY`, `CASPIAN_BASE_URL` | **Real**, minted free, live-verified |
+| `FEATHERLESS_API_KEY`, `FEATHERLESS_BASE_URL`, `FEATHERLESS_MODEL` | **Real**, live-verified |
+| `TELEGRAM_BOT_TOKEN` | **Real**, live-verified end to end (`@Shiv_Hacknews_Bot`) |
+| `DISCORD_BOT_TOKEN` | **Real**, connection active, bot in a server (`Hacknews`) |
+| `TELEGRAM_CHAT_ID`, `DISCORD_CHANNEL_ID` | Blank by design — not read by any code; Caspian routes by `conversation_id` |
 
 ## Honest limits
 
-- Telegram/Discord are written against caspian-sdk's documented pattern but
-  **not yet live-tested** — see above.
+- **Discord has not yet been exercised by a real human message** — see the
+  section above for exactly why that can't be self-tested.
+- **The agent answers every non-bot message in any Discord channel it can
+  read**, not only `@`-mentions (Caspian forwards all of them, and this
+  handler replies to each — non-commands get the help hint). That is the
+  right behavior for the personal single-user server this runs in, and it
+  guarantees a bare `/list` works without an `@`-mention; in a busy shared
+  server you would want to gate on mention or `chat_type == "dm"` first.
 - The scheduler runs as a background thread inside the same process as
   `client.listen()` (a 60-second tick by default); it is not a separate
   cron job or serverless function. Fine for a single-user personal agent,

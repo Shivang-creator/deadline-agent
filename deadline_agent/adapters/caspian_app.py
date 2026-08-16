@@ -112,13 +112,29 @@ def register_handler(
             sender_id=(message.sender or {}).get("address") if message.sender else None,
             text=message.text or "",
         )
+        # Logged so a live run leaves an auditable transcript of exactly what
+        # arrived on which channel and exactly what went back — the evidence
+        # trail for "this really ran on real channels", not a mock.
+        logger.info(
+            "INBOUND  [%s] conv=%s from=%s text=%r",
+            inbound.channel, inbound.conversation_id, inbound.sender_id, inbound.text,
+        )
         result = handle_message(db, clock, inbound, ai_fallback=ai_fallback)
         message.reply(result.reply_text)
+        logger.info(
+            "REPLY    [%s] conv=%s text=%r",
+            inbound.channel, inbound.conversation_id, result.reply_text,
+        )
 
 
 def _deliver(client: CommClient, notification: Notification) -> None:
     try:
         client.send_message(notification.conversation_id, text=notification.text)
+        logger.info(
+            "PROACTIVE[%s] conv=%s kind=%s deadline=%s text=%r",
+            notification.channel, notification.conversation_id, notification.kind,
+            notification.deadline_id, notification.text,
+        )
     except Exception:
         logger.exception(
             "Failed to deliver %s notification (deadline %s) to %s:%s",
@@ -143,8 +159,17 @@ def run(db_path: str | Path = DEFAULT_DB_PATH, *, tick_seconds: float = DEFAULT_
     """Start the real, live agent: connect channels, register the one
     handler, start the scheduler loop, then block on client.listen() until
     Ctrl+C. This is the Phase 2 entry point — see scripts/run_live.py."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    # The SDK polls the gateway ~once a second; at INFO that buries the
+    # INBOUND/REPLY/PROACTIVE lines that are the actual transcript.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     load_env_local()  # caspian_sdk only auto-reads ./.env, not ./.env.local
+    # A shorter tick makes a near-future test alert land promptly during a
+    # live demo; the default 60s is the sane production value.
+    tick_seconds = float(os.environ.get("DEADLINE_TICK_SECONDS", tick_seconds))
     db = Database(Path(db_path))
     clock = SystemClock()
     ai_fallback = build_ai_fallback()
