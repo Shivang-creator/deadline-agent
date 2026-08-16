@@ -29,17 +29,17 @@ handler per channel doesn't count."* So it doesn't, here.
 
 ```mermaid
 flowchart LR
-    subgraph Real["Real deployment (Phase 2)"]
+    subgraph Real["Live deployment (real tokens)"]
         TG[Telegram] --> CC
         DC[Discord] --> CC
         CC["caspian-sdk CommClient"] --> H
     end
-    subgraph Fake["Local dev/test (Phase 1 — this repo, today)"]
+    subgraph Fake["Local dev/test (no credentials needed)"]
         FK["fake_channel.dispatch()"] --> H
     end
-    H["core.handler.handle_message()\n(deadline_agent/core/*)"] -->|"HandlerResult"| CC
-    H --> DB[(SQLite:\ndeadlines,\nnotified-state,\nchannel bindings)]
-    SCH["core.scheduler.run_all()\n(24h/6h/1h + daily digest)"] --> DB
+    H["core.handler.handle_message()<br/>(deadline_agent/core/*)"] -->|"HandlerResult"| CC
+    H --> DB[("SQLite:<br/>deadlines,<br/>notified-state,<br/>channel bindings")]
+    SCH["core.scheduler.run_all()<br/>(24h/6h/1h + daily digest)"] --> DB
     SCH -->|"Notification"| CC
 ```
 
@@ -190,12 +190,35 @@ uv run python scripts/run_fake.py
 > :advance 23h 59m
 > :tick                     # <- alerts fire, printed instead of network-sent
 
-# Once TELEGRAM_BOT_TOKEN and/or DISCORD_BOT_TOKEN are real, in .env.local:
+# With real tokens in .env.local — live on Telegram + Discord:
 uv run python scripts/run_live.py
 
 # Seed real, currently-open hackathon deadlines (idempotent, safe to re-run):
 uv run python scripts/seed.py
 ```
+
+### Running it for a demo recording
+
+```bash
+cd ~/Projects/deadline-agent
+
+# Start in the background, 20s scheduler tick so a near-future alert lands fast,
+# with a readable transcript in live.log (gitignored):
+nohup env DEADLINE_TICK_SECONDS=20 ./.venv/bin/python scripts/run_live.py > live.log 2>&1 &
+
+# Watch the live transcript (this is the thing worth filming alongside the chats):
+tail -f live.log | grep -E "INBOUND|REPLY|PROACTIVE"
+
+# Stop it:
+pkill -f "scripts/run_live.py"
+```
+
+To make a real proactive alert fire on camera, add a deadline a couple of
+minutes out from either chat — `/add Demo in 2 minutes` — and the next tick
+delivers it for real. Because every threshold for a 2-minute deadline is
+already past, that fires the 24h/6h/1h catch-up burst (three pings); use
+`/add Demo in 70 minutes` instead if you want a single clean alert about ten
+minutes later.
 
 ## Tests
 
