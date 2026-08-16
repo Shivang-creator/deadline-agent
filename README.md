@@ -56,10 +56,28 @@ this; the agent spoke first:
 20:24:50  PROACTIVE[both] kind=alert:6h  '⏰ "Discord Side Test" is due in 5h 59m...'
 ```
 
-Across a three-hour live session: **8 distinct alert events, 14 sends, zero
-duplicates, zero misses.** Every event fired once per `(deadline, threshold)` and
-fanned to every channel bound at that moment — through five transient gateway
-outages that the client retried and recovered from on its own.
+Across a four-hour live session — 18:16 to 22:24 IST, one process, one SQLite
+file: **9 distinct alert events, 16 sends, zero duplicates, zero misses** —
+through five transient gateway outages the client retried and recovered from on
+its own.
+
+The single clearest artefact is one deadline's entire lifecycle. `deadline=7`
+fired its 24h, 6h and 1h alerts **exactly once each, in order**, four hours
+apart — and the 1h landed on both channels at precisely the right moment
+(deadline 23:23, trigger 22:23, delivered 22:23:58) without re-firing either of
+the earlier two:
+
+```
+18:23:58  PROACTIVE[telegram] kind=alert:24h deadline=7    <-- Discord not yet bound
+18:23:58  PROACTIVE[telegram] kind=alert:6h  deadline=7
+22:23:58  PROACTIVE[telegram] kind=alert:1h  deadline=7
+22:23:59  PROACTIVE[discord]  kind=alert:1h  deadline=7    <-- bound by now, so it fans
+```
+
+Those first two went to Telegram alone because Discord had not yet sent a
+message and therefore had no binding — the alert reaches the channels you're
+actually on, which is the whole point. By 22:23 both were bound, and the 1h alert
+fanned to both 275ms apart.
 
 Full transcripts, including the reverse direction (added on Discord, read on
 Telegram) and the restart-survival test, are in
