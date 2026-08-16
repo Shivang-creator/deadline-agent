@@ -58,7 +58,7 @@ this; the agent spoke first:
 
 Across a three-hour live session: **8 distinct alert events, 14 sends, zero
 duplicates, zero misses.** Every event fired once per `(deadline, threshold)` and
-fanned to every channel bound at that moment — through four transient gateway
+fanned to every channel bound at that moment — through five transient gateway
 outages that the client retried and recovered from on its own.
 
 Full transcripts, including the reverse direction (added on Discord, read on
@@ -386,14 +386,16 @@ whichever channel you're near.*
 
 ### One rough edge, honestly
 
-Caspian's gateway failed four event polls across the session — three
+Caspian's gateway failed five event polls across the session — four
 `500: Internal Server Error`, one Cloudflare `502`:
 
 ```
+18:24:17  WARNING gateway poll failed; retrying in 1.0s
+18:46:26  WARNING gateway poll failed; retrying in 1.0s
 19:25:32  WARNING gateway poll failed; retrying in 1.0s
           caspian_sdk.client.CommError: 500: Internal Server Error
 21:29:55  WARNING gateway poll failed; retrying in 1.0s
-          caspian_sdk.client.CommError: 500: Internal Server Error
+21:41:47  WARNING gateway poll failed; retrying in 1.0s
 ```
 
 Every one was server-side, and every one `client.listen()` retried with backoff
