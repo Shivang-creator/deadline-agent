@@ -62,6 +62,13 @@ One scheduler tick. One deadline. Two transports. Nothing inbound triggered it:
 
 Same millisecond, same deadline id, fanned to both bindings by one handler. That is what "one handler, two channels" means when it's real rather than described.
 
+And the scheduler doesn't just catch up on past thresholds — it fires at the right moment. The seeded "Social Media Automation" deadline (due 8:00 PM the next day) crossed its 24-hour threshold at exactly 8:00 PM, and the alert landed on both channels at **8:00:43 PM**, forty-three seconds into the next tick, reading "due in 23h 59m":
+
+```
+20:00:43 PROACTIVE[telegram] kind=alert:24h '⏰ "Social Media Automation" is due in 23h 59m...'
+20:00:43 PROACTIVE[discord]  kind=alert:24h '⏰ "Social Media Automation" is due in 23h 59m...'
+```
+
 ### It's an agent, not a chatbot
 
 The commands are the boring half. The half that matters is that **it speaks first**:
