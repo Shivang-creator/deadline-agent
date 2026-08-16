@@ -259,44 +259,94 @@ doesn't belong in a fast, deterministic, CI-friendly test run:
 Being precise about this, since "if the demo is mocked, it isn't judged" is
 the hardest rule here:
 
-**Live-verified against real networks, with real credentials:**
+Everything below is **live-verified against real networks with real
+credentials** — real bot tokens, real humans typing in real chats, verbatim
+from the running agent's transcript.
 
-- **Both channels connected and `active` on the real Caspian gateway** —
-  Telegram as `@Shiv_Hacknews_Bot` (`conn_95ca485a…`), Discord as
-  `Hacknews` (`conn_22341cdf…`), from one `CommClient` with one
-  `@client.on_message` registration.
-- **A real inbound Telegram message from a real human** (`/help`, sent from
-  a real Telegram account to the bot) dispatched into
-  `core.handler.handle_message()` and answered — the reply landed on
-  Telegram with gateway `status=sent`.
-- **A real proactive alert, agent-initiated, delivered to Telegram.** The
-  running scheduler computed it and called `client.send_message()` itself;
-  no inbound message triggered it. Confirmed `status=sent` on the gateway's
-  `message.sent` event stream.
-- **Real proactive alerts for the genuinely-seeded hackathon deadlines** —
-  a `24 hours-out` alert for **YouCam API** and a real **daily digest**
-  ("5 deadline(s) still open") were both delivered to Telegram unprompted.
-- **Restart survival, against the live process.** The running agent was
-  killed and restarted; it reconnected both channels and ran several
-  scheduler ticks against the same SQLite file and re-sent **nothing** —
-  the already-fired YouCam API 24h alert and the already-sent daily digest
-  stayed sent. This is the offline `test_restart_survival.py` guarantee,
-  reproduced on the real deployment.
+### The cross-channel proof (rule 4)
+
+A deadline added on **Telegram**, listed 45 seconds later from **Discord** —
+one handler, one SQLite file, two transports:
+
+```
+18:23:41  INBOUND [telegram] from=<human> text='/add Caspian Buildathon in 5 hours'
+18:23:42  REPLY   [telegram] 'Tracking "Caspian Buildathon" — due Sun 16 Aug 2026, 11:23 PM IST
+                              (5h 0m from now). I'll alert at 24h, 6h, and 1h before,
+                              wherever you're active.'
+
+18:24:26  INBOUND [discord]  from=<human> text='/list'
+18:24:26  REPLY   [discord]  'Tracked deadlines (soonest first):
+                              - Caspian Buildathon — Sun 16 Aug 2026, 11:23 PM IST (in 4h 59m)   <-- added on Telegram
+                              - YouCam API — Mon 17 Aug 2026, 06:00 PM IST (in 23h 35m)
+                              - Social Media Automation — Mon 17 Aug 2026, 08:00 PM IST (in 1d 1h)
+                              - CS Girlies — Mon 17 Aug 2026, 11:59 PM IST (in 1d 5h)
+                              - Impact Forge — Mon 17 Aug 2026, 11:59 PM IST (in 1d 5h)
+                              - OregonHacks — Tue 18 Aug 2026, 11:59 PM IST (in 2d 5h)'
+```
+
+And the reverse — added on **Discord**, listed from **Telegram**:
+
+```
+18:24:41  INBOUND [discord]  from=<human> text='/add Discord Side Test in 8 hours'
+18:24:42  REPLY   [discord]  'Tracking "Discord Side Test" — due Mon 17 Aug 2026, 02:24 AM IST...'
+
+18:25:11  INBOUND [telegram] from=<human> text='/list'
+18:25:11  REPLY   [telegram] 'Tracked deadlines (soonest first):
+                              - Caspian Buildathon — Sun 16 Aug 2026, 11:23 PM IST (in 4h 58m)
+                              - Discord Side Test — Mon 17 Aug 2026, 02:24 AM IST (in 7h 59m)   <-- added on Discord
+                              - YouCam API — Mon 17 Aug 2026, 06:00 PM IST (in 23h 34m)
+                              - ...'
+```
+
+Both directions, both real humans, both real chats, one handler.
+
+### Proactive alerts fanning out across both channels
+
+Seventeen seconds later, the scheduler alerted on that Discord-added
+deadline — and delivered it to **both** channels, because both had a
+binding. Same `deadline=8`, two transports, agent-initiated, nothing
+inbound triggered it:
+
+```
+18:24:58  PROACTIVE[discord]  kind=alert:24h deadline=8 '⏰ "Discord Side Test" is due in 7h 59m ...'
+18:24:58  PROACTIVE[telegram] kind=alert:24h deadline=8 '⏰ "Discord Side Test" is due in 7h 59m ...'
+```
+
+That is the whole product thesis in two log lines: *it reaches you on
+whichever channel you're near.*
+
+### Also live-verified
+
+- **Both channels `active` on the real gateway** — Telegram
+  `@Shiv_Hacknews_Bot` (`conn_95ca485a…`), Discord `Hacknews`
+  (`conn_22341cdf…`), from one `CommClient`, one `@client.on_message`.
+- **Real alerts on the genuinely-seeded hackathon deadlines** — a
+  `24 hours-out` alert for **YouCam API** and a real **daily digest**
+  ("5 deadline(s) still open"), both delivered unprompted.
+- **Restart survival, on the live process.** The agent was killed and
+  restarted; it reconnected both channels, ran several scheduler ticks
+  against the same SQLite file, and re-sent **nothing** — the already-fired
+  YouCam 24h alert and already-sent digest stayed sent.
+  `test_restart_survival.py`'s guarantee, reproduced on the real deployment.
+- **Discord MESSAGE CONTENT INTENT confirmed enabled** the decisive way: a
+  gateway IDENTIFY carrying intent bit 15 was accepted with `READY` rather
+  than closed with opcode `4014 Disallowed intent(s)`.
 - **The Featherless AI-fallback layer** against the real API.
-- **Caspian's hosted email channel** round-tripping `/add` + `/list`
-  through the same `register_handler()`, via `scripts/verify_live_email.py`.
+- **Caspian's hosted email channel** round-tripping `/add` + `/list` through
+  the same `register_handler()` (`scripts/verify_live_email.py`).
 
-**Written and connected, but not yet exercised by a real human message:**
+### One rough edge, honestly
 
-- **Discord inbound.** The Discord connection is live and `active`, and the
-  bot is now in a server, but at the time of writing no real person had yet
-  typed a command in a Discord channel, so the Telegram→Discord `/list`
-  round trip is not something this README will claim as observed. Note this
-  cannot be self-tested: Caspian's Discord adapter deliberately drops any
-  message whose author is a bot (`providers/discord.py`: `if
-  data.get("author", {}).get("bot"): return []`), and Telegram bots cannot
-  message bots — so genuine inbound traffic requires a human account, and
-  faking it would be exactly the mocking the rules exclude.
+The gateway returned a transient `500` on one event poll mid-session:
+
+```
+caspian_sdk.client.CommError: 500: Internal Server Error
+```
+
+`client.listen()` retried with backoff and recovered on its own — the very
+next Discord message was handled normally, which is why the timestamps above
+are continuous. Nothing was lost, but it's a real thing that happened on a
+real network and it would be dishonest to scrub it from the log.
 
 ## What's in `.env.local` right now
 
