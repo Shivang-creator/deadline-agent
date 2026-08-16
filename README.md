@@ -276,6 +276,12 @@ the hardest rule here:
 - **Real proactive alerts for the genuinely-seeded hackathon deadlines** —
   a `24 hours-out` alert for **YouCam API** and a real **daily digest**
   ("5 deadline(s) still open") were both delivered to Telegram unprompted.
+- **Restart survival, against the live process.** The running agent was
+  killed and restarted; it reconnected both channels and ran several
+  scheduler ticks against the same SQLite file and re-sent **nothing** —
+  the already-fired YouCam API 24h alert and the already-sent daily digest
+  stayed sent. This is the offline `test_restart_survival.py` guarantee,
+  reproduced on the real deployment.
 - **The Featherless AI-fallback layer** against the real API.
 - **Caspian's hosted email channel** round-tripping `/add` + `/list`
   through the same `register_handler()`, via `scripts/verify_live_email.py`.
