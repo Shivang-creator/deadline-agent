@@ -265,10 +265,10 @@ the hardest rule here:
   Telegram as `@Shiv_Hacknews_Bot` (`conn_95ca485a…`), Discord as
   `Hacknews` (`conn_22341cdf…`), from one `CommClient` with one
   `@client.on_message` registration.
-- **A real inbound Telegram message from a real human** (`/help` from
-  Telegram user `Shiv4453`) dispatched into `core.handler.handle_message()`
-  and answered — the reply landed on Telegram with gateway
-  `status=sent`.
+- **A real inbound Telegram message from a real human** (`/help`, sent from
+  a real Telegram account to the bot) dispatched into
+  `core.handler.handle_message()` and answered — the reply landed on
+  Telegram with gateway `status=sent`.
 - **A real proactive alert, agent-initiated, delivered to Telegram.** The
   running scheduler computed it and called `client.send_message()` itself;
   no inbound message triggered it. Confirmed `status=sent` on the gateway's
