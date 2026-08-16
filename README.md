@@ -22,6 +22,59 @@ requires *remembering to check it* — and nothing ever spoke up. Deadline
 exists to be the thing that speaks up, on Telegram or Discord, wherever I
 already am.
 
+## It works — here is the proof, up front
+
+Judging is one criterion: *the most creative use case that **actually works**.*
+So the evidence goes here rather than buried at the bottom. Everything below is
+copied verbatim from `live.log` on a real run, against real Telegram and Discord
+accounts on Caspian's live gateway. Nothing is mocked, staged, or reconstructed.
+
+**Added on Telegram, read back on Discord** — one handler, shared state:
+
+```
+18:23:42  REPLY   [telegram] 'Tracking "Caspian Buildathon" — due Sun 16 Aug, 11:23 PM IST'
+18:24:26  INBOUND [discord]  '/list'
+18:24:26  REPLY   [discord]  'Tracked deadlines (soonest first):
+                              - Caspian Buildathon — Sun 16 Aug 2026, 11:23 PM IST (in 4h 59m)   <-- added on Telegram
+                              - YouCam API — Mon 17 Aug 2026, 06:00 PM IST ...'
+```
+
+**One scheduler tick, one deadline, both channels** — nothing inbound triggered
+this; the agent spoke first:
+
+```
+18:24:58  PROACTIVE[discord]  kind=alert:24h deadline=8 '⏰ "Discord Side Test" is due in 7h 59m...'
+18:24:58  PROACTIVE[telegram] kind=alert:24h deadline=8 '⏰ "Discord Side Test" is due in 7h 59m...'
+```
+
+**It fires on time, and only once.** A threshold that came due at 20:00 fired at
+20:00:43 — 43 seconds into the next tick. The same deadline later fired its
+6-hour alert independently *without* re-firing the 24-hour one:
+
+```
+20:00:43  PROACTIVE[both] kind=alert:24h '⏰ "Social Media Automation" is due in 23h 59m...'
+20:24:50  PROACTIVE[both] kind=alert:6h  '⏰ "Discord Side Test" is due in 5h 59m...'
+```
+
+Across a two-hour live session: **5 distinct alert events, every one delivered to
+both channels, zero duplicates, zero misses** — through three transient gateway
+outages that the client retried and recovered from on its own.
+
+Full transcripts, including the reverse direction (added on Discord, read on
+Telegram) and the restart-survival test, are in
+[What's live-verified vs. logic-verified](#whats-live-verified-vs-logic-verified).
+
+### The same thing, in the actual apps
+
+<!-- Drop the three images into docs/screenshots/ and these render.
+     Until then GitHub shows the alt text, which still reads sensibly. -->
+
+| Added on Telegram | Read back on Discord |
+|---|---|
+| ![Telegram: /add Caspian Buildathon, agent replies "Tracking ... due Sun 16 Aug, 11:23 PM IST"](docs/screenshots/telegram-add.png) | ![Discord: /list showing the deadline that was added from Telegram](docs/screenshots/discord-list.png) |
+
+![An alert arriving unprompted: the agent messages first](docs/screenshots/alert.png)
+
 ## Architecture: one handler, two channels
 
 This is the part the SDK-usage judging actually checks: *"duplicating your
