@@ -56,8 +56,9 @@ this; the agent spoke first:
 20:24:50  PROACTIVE[both] kind=alert:6h  '⏰ "Discord Side Test" is due in 5h 59m...'
 ```
 
-Across a two-hour live session: **5 distinct alert events, every one delivered to
-both channels, zero duplicates, zero misses** — through three transient gateway
+Across a three-hour live session: **8 distinct alert events, 14 sends, zero
+duplicates, zero misses.** Every event fired once per `(deadline, threshold)` and
+fanned to every channel bound at that moment — through four transient gateway
 outages that the client retried and recovered from on its own.
 
 Full transcripts, including the reverse direction (added on Discord, read on
@@ -66,14 +67,9 @@ Telegram) and the restart-survival test, are in
 
 ### The same thing, in the actual apps
 
-<!-- Drop the three images into docs/screenshots/ and these render.
-     Until then GitHub shows the alt text, which still reads sensibly. -->
-
-| Added on Telegram | Read back on Discord |
-|---|---|
-| ![Telegram: /add Caspian Buildathon, agent replies "Tracking ... due Sun 16 Aug, 11:23 PM IST"](docs/screenshots/telegram-add.png) | ![Discord: /list showing the deadline that was added from Telegram](docs/screenshots/discord-list.png) |
-
-![An alert arriving unprompted: the agent messages first](docs/screenshots/alert.png)
+A screen recording of the above happening live — real Telegram and Discord
+windows side by side, typed by hand, with the agent's transcript scrolling
+underneath — is the demo video linked from the Devpost submission.
 
 ## Architecture: one handler, two channels
 
@@ -197,8 +193,8 @@ curl -X POST https://api.trycaspianai.com/v1/projects/sandbox -d '{"name":"deadl
 ```
 
 Put the returned `api_key` into `.env.local` as `CASPIAN_API_KEY`. (A real
-one is already there for this submission — see "What's already wired up"
-below.)
+one is already there for this submission — see
+[What's in `.env.local` right now](#whats-in-envlocal-right-now) below.)
 
 ### 2. Telegram
 
@@ -390,16 +386,22 @@ whichever channel you're near.*
 
 ### One rough edge, honestly
 
-The gateway returned a transient `500` on one event poll mid-session:
+Caspian's gateway failed four event polls across the session — three
+`500: Internal Server Error`, one Cloudflare `502`:
 
 ```
-caspian_sdk.client.CommError: 500: Internal Server Error
+19:25:32  WARNING gateway poll failed; retrying in 1.0s
+          caspian_sdk.client.CommError: 500: Internal Server Error
+21:29:55  WARNING gateway poll failed; retrying in 1.0s
+          caspian_sdk.client.CommError: 500: Internal Server Error
 ```
 
-`client.listen()` retried with backoff and recovered on its own — the very
-next Discord message was handled normally, which is why the timestamps above
-are continuous. Nothing was lost, but it's a real thing that happened on a
-real network and it would be dishonest to scrub it from the log.
+Every one was server-side, and every one `client.listen()` retried with backoff
+and recovered from on its own — the next message after each was handled normally,
+which is why the timestamps above are continuous. Zero crashes, zero lost alerts,
+zero duplicate sends. It's a real thing that happened on a real network and it
+would be dishonest to scrub it from the log; an agent whose whole job is
+reliability should be the last one to hide a transport wobble.
 
 ## What's in `.env.local` right now
 
@@ -413,8 +415,6 @@ real network and it would be dishonest to scrub it from the log.
 
 ## Honest limits
 
-- **Discord has not yet been exercised by a real human message** — see the
-  section above for exactly why that can't be self-tested.
 - **The agent answers every non-bot message in any Discord channel it can
   read**, not only `@`-mentions (Caspian forwards all of them, and this
   handler replies to each — non-commands get the help hint). That is the
