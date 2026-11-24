@@ -17,6 +17,8 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
+# Manual backups (deadline_agent.db.bak-YYYYMMDD-HHMM) hold the same real data
+*.db.bak*
 
 # Live run logs (transcripts of real conversations — not for the repo)
 *.log
